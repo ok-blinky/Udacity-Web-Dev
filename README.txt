@@ -9,4 +9,4 @@ basic web development and version control systems.
 
 All of this is currently for my amateur, personal use.
 
-ok-blinky || 04/07/2014
+ok-blinky
