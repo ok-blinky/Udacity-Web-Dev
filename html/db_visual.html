@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><title>User Database</title></head>
+<body>
+<b>User Database</b>
+<br><br>
+{% for u in User %}
+<div class="user-username">Username: {{u.name}} || </div>
+<div class="user-password">Password: {{u.pw_hash}} || </div>
+<div class="user-email">Email: {{u.email}} || </div>
+<div class="user-join_date">Date Joined: {{u.join_date}}</div>
+<br>
+{% endfor %}
+</body></html>
