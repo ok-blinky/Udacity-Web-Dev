@@ -1,6 +1,8 @@
 import os
 
-import webapp2, jinja2, re, hmac, hashlib, random
+import webapp2, jinja2, re, hmac, hashlib, random, urllib2
+
+from xml.dom import minidom
 
 from string import letters
 
@@ -219,11 +221,34 @@ class WelcomeHandler(Handler):
 		else:
 			self.redirect('/signup')
 
+
+IP_URL = "http://api.hostip.info/?ip="
+#this is from www.hostip.info for getting coordinates from an IP
+def get_coords(ip):
+	url = IP_URL + ip
+	content = None
+	try:
+		content = urllib2.urlopen(url).read()
+	except URLError:
+		return
+#urllib will return the above error if the service is down or it cant
+#get coords for some reason, so this will catch that
+	if content:
+		d = minidom.parseString(content)
+		coords = d.getElementsByTagName("gml:coordinates")
+		if coords and coords[0].childNodes[0].nodeValue:
+			lon, lat = coords[0].childNodes[0].nodeValue.split(',')
+			return db.GeoPt(lat, lon)
+#db.GeoPt(lat,lon) is part of google app engine
+#it's the datatype for storing a lattitude and longitude
+
 class Art(db.Model):
 	title = db.StringProperty(required = True)
 	art = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
 	short_created = db.DateProperty(auto_now_add = True)
+	coords = db.GeoPtProperty()
+	#google specific datatype for storing lat/long
 
 class AsciiPage(Handler):
 	def render_ascii_front(self, title="", art="", created="",
@@ -233,6 +258,10 @@ class AsciiPage(Handler):
 					short_created=short_created, ascii_error=ascii_error, arts=arts)
 
 	def get(self):
+#		self.write(repr(get_coords(self.request.remote_addr)))
+#above is a hacky way to display what our get_coords is returning
+#repr adds quotes to python objects so they won't be treated as html
+#self.request.remote_addr is AppEngine's way of obtaining user's IPs
 		self.render_ascii_front()
 
 	def post(self):
@@ -241,6 +270,11 @@ class AsciiPage(Handler):
 
 		if title and art:
 			a = Art(title=title, art=art)
+			coords = get_coords(self.request.remote_addr)
+			#lookup user's IP and get coordinates
+			if coords:
+				a.coords = coords
+			#if we have coords, add them to the art
 			a.put()
 
 			self.redirect("/ascii")
