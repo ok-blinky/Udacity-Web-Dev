@@ -9,18 +9,29 @@ Make Some Art in This Box!<br>Or steal it, you thief!<br>
 <textarea name="art">{{art}}</textarea>
 <br>
 <div style="color: red" class="ascii_error">{{ascii_error}}</div>
-<br><input type="submit"><br>
+<input type="submit"><br><br>
 </form>
+
+{% if img_url %}
+	<img class="map" src="{{img_url}}">
+{% endif %}
+
 {% for art in arts %}
 <div class="art">
-	<div class="art-title">
-	Title: {{art.title}} || Submitted: {{art.short_created}}</div>
+<div class="art-title">Title: {{art.title}}</div>
+<div class="art-created"><em>Submitted: {{art.created.strftime("%b %d, %Y")}} at {{art.created.strftime("%H:%M:%S")}}</em></div><br>
 	<pre class="art-body">{{art.art}}</pre>
 </div>
 {% endfor %}
 </body></html>
 
 	<style type="text/css">
+		.map {
+			position: absolute;
+			right: 0;
+			top: 112px;
+		}
+
 		body {
 			font=family: sans-serif;
 			width: 800px;
@@ -64,6 +75,10 @@ Make Some Art in This Box!<br>Or steal it, you thief!<br>
 		
 		.art-title {
 			font-weight: bold;
+			font-size: 20px;
+		}
+
+		.art-created {
 			font-size: 20px;
 		}
 		

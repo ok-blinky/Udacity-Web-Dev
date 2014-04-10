@@ -222,8 +222,16 @@ class WelcomeHandler(Handler):
 			self.redirect('/signup')
 
 
+GMAPS_URL = "http://maps.googleapis.com/maps/api/staticmap?size=380x263&sensor=false&"
+#this is gmaps api for drawing a static google map
+def gmaps_img(points):
+	pins = '&'.join('markers=%s,%s' % (p.lat, p.lon) for p in points)
+	return GMAPS_URL + pins
+#this adds the query parameters for the pins on the map from the coords
+#we retrieved using the hostip api below that were added to our Art db
+
 IP_URL = "http://api.hostip.info/?ip="
-#this is from www.hostip.info for getting coordinates from an IP
+#this is the api from www.hostip.info for getting coordinates from an IP
 def get_coords(ip):
 	url = IP_URL + ip
 	content = None
@@ -246,16 +254,28 @@ class Art(db.Model):
 	title = db.StringProperty(required = True)
 	art = db.TextProperty(required = True)
 	created = db.DateTimeProperty(auto_now_add = True)
-	short_created = db.DateProperty(auto_now_add = True)
 	coords = db.GeoPtProperty()
 	#google specific datatype for storing lat/long
 
 class AsciiPage(Handler):
 	def render_ascii_front(self, title="", art="", created="",
-					short_created="", ascii_error=""):
+							ascii_error=""):
 		arts = db.GqlQuery("select * from Art order by created desc")
-		self.render("ascii_front.html", title=title, art=art, created=created, 
-					short_created=short_created, ascii_error=ascii_error, arts=arts)
+		#above query is run every time we iterate over the cursor
+		#to prevent running multiple queries we'll do this:
+		arts = list(arts)
+
+		#find which arts have coords
+		points = filter(None, (a.coords for a in arts))
+		#if any arts have coords, make an image url
+		img_url = None
+		if points:
+			img_url = gmaps_img(points)
+		#display the image url
+
+		self.render("ascii_front.html", title=title, art=art, 
+					created=created, ascii_error=ascii_error, 
+					arts=arts, img_url=img_url)
 
 	def get(self):
 #		self.write(repr(get_coords(self.request.remote_addr)))
@@ -293,22 +313,19 @@ class Post(db.Model):
 #render function here is used to preserve new lines in blog posts
 
 class BlagPage(Handler):
-	def render_blag_front(self, subject="", content="", created="",
-						  short_created=""):
+	def render_blag_front(self, subject="", content="", created=""):
 		entries = db.GqlQuery("select * from Post order by created desc")
 		self.render("blag_front.html", subject=subject, content=content,
-					created=created, short_created=short_created,
-					entries=entries)
+					created=created, entries=entries)
 
 	def get(self):
 		self.render_blag_front()
 
 class BlagPost(Handler):
 	def render_blag_post(self, subject="", content="", created="",
-						  short_created="", blag_error=""):
+						  blag_error=""):
 		self.render("blag_post.html", subject=subject, content=content, 
-					created=created, short_created=short_created, 
-					blag_error=blag_error)
+					created=created, blag_error=blag_error)
 
 	def get(self):
 		self.render_blag_post()
