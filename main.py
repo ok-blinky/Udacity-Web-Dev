@@ -1,6 +1,6 @@
 import os
 
-import webapp2, jinja2, re, hmac, hashlib, random, urllib2
+import webapp2, jinja2, re, hmac, hashlib, random, urllib2, json
 
 from xml.dom import minidom
 
@@ -147,7 +147,7 @@ class LoginHandler(Handler):
 #returns the user if it's a valid name/pw combo, and None otherwise
 		if u:
 			self.login_success(u)
-			self.redirect('/welcome')
+			self.redirect('/blag/welcome')
 		else:
 			login_error = "Invalid login!"
 			self.render('login.html', login_error = login_error)
@@ -156,7 +156,7 @@ class LogoutHandler(Handler):
 
 	def get(self):
 		self.logout()
-		self.redirect('/signup')
+		self.redirect('/blag/signup')
 
 class SignupHandler(Handler):
 
@@ -211,7 +211,7 @@ class RegisterHandler(SignupHandler):
 			u.put()
 
 			self.login_success(u)
-			self.redirect('/welcome')
+			self.redirect('/blag/welcome')
 
 class WelcomeHandler(Handler):
 
@@ -219,7 +219,7 @@ class WelcomeHandler(Handler):
 		if self.user:
 			self.render('welcome.html', username = self.user.name)
 		else:
-			self.redirect('/signup')
+			self.redirect('/blag/signup')
 
 
 GMAPS_URL = "http://maps.googleapis.com/maps/api/staticmap?size=380x263&sensor=false&"
@@ -344,18 +344,51 @@ class BlagPost(Handler):
 			blag_error = "I only asked for two things, c'mon!"
 			self.render_blag_post(subject, content, blag_error=blag_error)
 
+class JsonHandler(BlagPage):
+	def get(self):
+		self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
+
+		l = []
+		posts = db.GqlQuery("select * from Post order by created desc")
+		posts = list(posts)
+
+		for p in posts:
+			j = {}
+			j["content"]=p.content
+			j["subject"]=p.subject
+			l.append(j)
+
+		self.write(json.dumps(l))
+
+
 class BlagPostPermalink(BlagPage):
 	def get(self, post_id):
 		s = Post.get_by_id(int(post_id))
 		self.render("blag_front.html", entries=[s])
 
+class JsonPermalink(BlagPostPermalink):
+	def get(self, post_id):
+		self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
+		s = Post.get_by_id(int(post_id))
+		j = {"content":s.content, "subject":s.subject}
+
+		self.write(json.dumps(j))
+
+
 app = webapp2.WSGIApplication([("/signup", RegisterHandler),
+							   ("/blag/signup", RegisterHandler),
 							   ("/welcome", WelcomeHandler),
+							   ("/blag/welcome", WelcomeHandler),
 							   ("/login", LoginHandler),
+							   ("/blag/login", LoginHandler),
 							   ("/logout", LogoutHandler),
+							   ("/blag/logout", LogoutHandler),
 							   ('/ascii', AsciiPage),
 							   ('/blag', BlagPage),
 							   ('/blag/newpost', BlagPost),
 							   ('/blag/(\d+)', BlagPostPermalink),
-							   ('/database', DBHandler)], 
+							   ('/database', DBHandler),
+							   ('/blag.json', JsonHandler),
+							   ('/blag/.json', JsonHandler),
+							   ('/blag/(\d+).json', JsonPermalink)], 
 								debug=True)
