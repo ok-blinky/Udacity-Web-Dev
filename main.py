@@ -1,6 +1,6 @@
 import os
 
-import webapp2, jinja2, re, hmac, hashlib, random, urllib2, json
+import webapp2, jinja2, re, hmac, hashlib, random, urllib2, json, logging
 
 from xml.dom import minidom
 
@@ -257,13 +257,28 @@ class Art(db.Model):
 	coords = db.GeoPtProperty()
 	#google specific datatype for storing lat/long
 
+ART_CACHE = {}
+def top_arts():
+	key = 'top'
+	#this is how we'll reference the result of our query in the cache
+	if key in ART_CACHE:
+		arts = ART_CACHE[key]
+	else:
+		logging.error("DB QUERY")
+	#this prints "DB QUERY" to the console as an error when we run this
+	#only doing this to illustrate how caching this result makes it
+	#not run this function until the cache is cleared
+		arts = db.GqlQuery("SELECT * FROM Art ORDER BY created DESC LIMIT 10")
+	#above query is run every time we iterate over the cursor
+	#to prevent running multiple queries we turn it into a list:
+		arts = list(arts)
+		ART_CACHE[key] = arts
+	return arts
+
 class AsciiPage(Handler):
 	def render_ascii_front(self, title="", art="", created="",
 							ascii_error=""):
-		arts = db.GqlQuery("select * from Art order by created desc")
-		#above query is run every time we iterate over the cursor
-		#to prevent running multiple queries we'll do this:
-		arts = list(arts)
+		arts = top_arts()
 
 		#find which arts have coords
 		points = filter(None, (a.coords for a in arts))
@@ -296,6 +311,7 @@ class AsciiPage(Handler):
 				a.coords = coords
 			#if we have coords, add them to the art
 			a.put()
+			ART_CACHE.clear()
 
 			self.redirect("/ascii")
 		else:
@@ -356,6 +372,7 @@ class JsonHandler(BlagPage):
 			j = {}
 			j["content"]=p.content
 			j["subject"]=p.subject
+			j["created"]=p.created.strftime('%c')
 			l.append(j)
 
 		self.write(json.dumps(l))
@@ -370,10 +387,12 @@ class JsonPermalink(BlagPostPermalink):
 	def get(self, post_id):
 		self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
 		s = Post.get_by_id(int(post_id))
-		j = {"content":s.content, "subject":s.subject}
+		j = {"content":s.content, "subject":s.subject,
+			 "created":s.created.strftime('%c')}
 
 		self.write(json.dumps(j))
 
+#fix these handlers so they use real expressions
 
 app = webapp2.WSGIApplication([("/signup", RegisterHandler),
 							   ("/blag/signup", RegisterHandler),
