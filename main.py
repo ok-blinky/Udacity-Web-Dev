@@ -258,10 +258,12 @@ class Art(db.Model):
 	#google specific datatype for storing lat/long
 
 ART_CACHE = {}
-def top_arts():
+def top_arts(update = False):
+	#added update param so we can prevent cache stampede
+	#now only a user who posts to the db will trigger a cache update
 	key = 'top'
 	#this is how we'll reference the result of our query in the cache
-	if key in ART_CACHE:
+	if not update and key in ART_CACHE:
 		arts = ART_CACHE[key]
 	else:
 		logging.error("DB QUERY")
@@ -311,8 +313,11 @@ class AsciiPage(Handler):
 				a.coords = coords
 			#if we have coords, add them to the art
 			a.put()
-			ART_CACHE.clear()
-
+#			ART_CACHE.clear()
+#clearing the cache works but can result in cache stampede
+#instead we will update the cache with new data as we receive it
+			top_arts(True)
+	#now our top_arts function will rerun the query and update the cache
 			self.redirect("/ascii")
 		else:
 			ascii_error = "I only asked for two things, c'mon!"
