@@ -399,7 +399,7 @@ class JsonPermalink(BlagPostPermalink):
 
 #fix these handlers so they use real expressions
 
-app = webapp2.WSGIApplication([("/signup", RegisterHandler),
+app = webapp2.WSGIApplication([("(?)/signup", RegisterHandler),
 							   ("/blag/signup", RegisterHandler),
 							   ("/welcome", WelcomeHandler),
 							   ("/blag/welcome", WelcomeHandler),
