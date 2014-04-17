@@ -402,7 +402,7 @@ class JsonPermalink(BlagPostPermalink):
 app = webapp2.WSGIApplication([("(?)/signup", RegisterHandler),
 							   ("/blag/signup", RegisterHandler),
 							   ("/welcome", WelcomeHandler),
-							   ("/blag/welcome", WelcomeHandler),
+							   ("(?)/welcome", WelcomeHandler),
 							   ("/login", LoginHandler),
 							   ("/blag/login", LoginHandler),
 							   ("/logout", LogoutHandler),
