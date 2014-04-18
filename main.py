@@ -147,7 +147,7 @@ class LoginHandler(Handler):
 #returns the user if it's a valid name/pw combo, and None otherwise
 		if u:
 			self.login_success(u)
-			self.redirect('/blag/welcome')
+			self.redirect('/welcome')
 		else:
 			login_error = "Invalid login!"
 			self.render('login.html', login_error = login_error)
@@ -156,7 +156,7 @@ class LogoutHandler(Handler):
 
 	def get(self):
 		self.logout()
-		self.redirect('/blag/signup')
+		self.redirect('/signup')
 
 class SignupHandler(Handler):
 
@@ -211,7 +211,7 @@ class RegisterHandler(SignupHandler):
 			u.put()
 
 			self.login_success(u)
-			self.redirect('/blag/welcome')
+			self.redirect('/welcome')
 
 class WelcomeHandler(Handler):
 
@@ -219,7 +219,7 @@ class WelcomeHandler(Handler):
 		if self.user:
 			self.render('welcome.html', username = self.user.name)
 		else:
-			self.redirect('/blag/signup')
+			self.redirect('/signup')
 
 
 GMAPS_URL = "http://maps.googleapis.com/maps/api/staticmap?size=380x263&sensor=false&"
@@ -397,22 +397,15 @@ class JsonPermalink(BlagPostPermalink):
 
 		self.write(json.dumps(j))
 
-#fix these handlers so they use real expressions
-
-app = webapp2.WSGIApplication([("(?)/signup", RegisterHandler),
-							   ("/blag/signup", RegisterHandler),
+app = webapp2.WSGIApplication([("/signup", RegisterHandler),
 							   ("/welcome", WelcomeHandler),
-							   ("(?)/welcome", WelcomeHandler),
 							   ("/login", LoginHandler),
-							   ("/blag/login", LoginHandler),
 							   ("/logout", LogoutHandler),
-							   ("/blag/logout", LogoutHandler),
 							   ('/ascii', AsciiPage),
 							   ('/blag', BlagPage),
 							   ('/blag/newpost', BlagPost),
 							   ('/blag/(\d+)', BlagPostPermalink),
 							   ('/database', DBHandler),
-							   ('/blag.json', JsonHandler),
-							   ('/blag/.json', JsonHandler),
-							   ('/blag/(\d+).json', JsonPermalink)], 
+							   ('/blag/?(?:\.json)?', JsonHandler),
+							   ('/blag/(\d+)/?(?:\.json)?', JsonPermalink)], 
 								debug=True)
