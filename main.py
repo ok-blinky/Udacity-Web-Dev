@@ -1,11 +1,9 @@
 import os
-
 import webapp2, jinja2, re, hmac, hashlib, random, urllib2, json, logging
-
 from xml.dom import minidom
-
 from string import letters
 
+from google.appengine.api import memcache
 from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__), 'html')
@@ -257,24 +255,23 @@ class Art(db.Model):
 	coords = db.GeoPtProperty()
 	#google specific datatype for storing lat/long
 
-ART_CACHE = {}
 def top_arts(update = False):
 	#added update param so we can prevent cache stampede
 	#now only a user who posts to the db will trigger a cache update
-	key = 'top'
+	key = 'top_art'
 	#this is how we'll reference the result of our query in the cache
-	if not update and key in ART_CACHE:
-		arts = ART_CACHE[key]
-	else:
+	arts = memcache.get(key)
+	if arts is None or update:
 		logging.error("DB QUERY")
 	#this prints "DB QUERY" to the console as an error when we run this
 	#only doing this to illustrate how caching this result makes it
 	#not run this function until the cache is cleared
-		arts = db.GqlQuery("SELECT * FROM Art ORDER BY created DESC LIMIT 10")
+		arts = db.GqlQuery("SELECT * FROM Art "
+							"ORDER BY created DESC LIMIT 10")
 	#above query is run every time we iterate over the cursor
 	#to prevent running multiple queries we turn it into a list:
 		arts = list(arts)
-		ART_CACHE[key] = arts
+		memcache.set(key, arts)
 	return arts
 
 class AsciiPage(Handler):
