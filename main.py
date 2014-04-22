@@ -155,7 +155,7 @@ class LogoutHandler(Handler):
 
 	def get(self):
 		self.logout()
-		self.redirect('/signup')
+		self.redirect('/blag/signup')
 
 class SignupHandler(Handler):
 
@@ -218,7 +218,7 @@ class WelcomeHandler(Handler):
 		if self.user:
 			self.render('welcome.html', username = self.user.name)
 		else:
-			self.redirect('/signup')
+			self.redirect('/blag/signup')
 
 
 GMAPS_URL = "http://maps.googleapis.com/maps/api/staticmap?size=380x263&sensor=false&"
@@ -360,15 +360,14 @@ class BlagPage(Handler):
 
 def blag_permalinks(key, update = False):
 	try:
-		permalink = memcache.get(key)
+		permalink = memcache.get(key)[1]
 	except TypeError:
 		permalink = None
 	if permalink is None or update:
 		logging.error("DB QUERY")
-		permalink = db.GqlQuery("SELECT * FROM Post")
-		permalink = list(permalink)
-		memcache.set(key, (permalink))
-	return ikey
+		permalink = db.get(db.Key.from_path('Post', int(key)))
+		memcache.set(key, (time.time(), permalink))
+	return permalink
 
 class BlagPost(Handler):
 	def render_blag_post(self, subject="", content="", created="",
@@ -414,11 +413,10 @@ class JsonHandler(BlagPage):
 class BlagPostPermalink(BlagPage):
 	def get(self, post_id):
 #		self.write(repr(post_id))
-		s = blag_permalinks(key=post_id, update=True)
-		self.write(repr(s))
-#		query_time = time.time() - memcache.get(post_id)[0]
-#		QUERIED = "Queried %f seconds ago" % query_time
-#		self.render("blag_front.html", entries=s)
+		s = blag_permalinks(key=post_id)
+		query_time = time.time() - memcache.get(post_id)[0]
+		QUERIED = "Queried %f seconds ago" % query_time
+		self.render("blag_front.html", entries=[s], QUERIED=QUERIED)
 
 class JsonPermalink(BlagPostPermalink):
 	def get(self, post_id):
@@ -429,7 +427,12 @@ class JsonPermalink(BlagPostPermalink):
 
 		self.write(json.dumps(j))
 
-app = webapp2.WSGIApplication([("/signup/?", RegisterHandler),
+class FlushCache(Handler):
+	def get(self):
+		memcache.flush_all()
+		self.redirect("/blag")
+
+app = webapp2.WSGIApplication([("/blag/signup/?", RegisterHandler),
 							   ("/welcome/?", WelcomeHandler),
 							   ("/login/?", LoginHandler),
 							   ("/logout/?", LogoutHandler),
@@ -439,5 +442,6 @@ app = webapp2.WSGIApplication([("/signup/?", RegisterHandler),
 							   ('/blag/(\d+)', BlagPostPermalink),
 							   ('/database/?', DBHandler),
 							   ('/blag/?(?:\.json)?', JsonHandler),
-							   ('/blag/(\d+)/?(?:\.json)?', JsonPermalink)], 
+							   ('/blag/(\d+)/?(?:\.json)?', JsonPermalink),
+							   ('/blag/flush/?', FlushCache)],
 								debug=True)
