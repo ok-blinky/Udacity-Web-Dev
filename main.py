@@ -1,5 +1,6 @@
 import os
 import webapp2, jinja2, re, hmac, hashlib, random, urllib2, json, logging
+import time
 from xml.dom import minidom
 from string import letters
 
@@ -109,7 +110,7 @@ class User(db.Model):
 		u = cls.all().filter('name =', name).get()
 		return u
 #this lets your call by_name to retrieve a username from the database
-#rather than using GqlQuery("select * from User where name=:1" name).get()
+#rather than using GqlQuery("select * from User where name=:1" "name").get()
 
 	@classmethod
 	def register(cls, name, pw, email = None):
@@ -330,14 +331,44 @@ class Post(db.Model):
 		return render_str("blag_post.html", p = self)
 #render function here is used to preserve new lines in blog posts
 
+def top_posts(update = False):
+	key = 'top_post'
+	try:
+		posts = memcache.get(key)[1]
+	except:
+		posts = None
+	#pulls just the posts from the tuple of (query_time, posts)
+	if posts is None or update:
+		logging.error("DB QUERY")
+		posts = db.GqlQuery("SELECT * FROM Post "
+							"ORDER BY created DESC LIMIT 10")
+		posts = list(posts)
+		memcache.set(key, (time.time(), posts))
+		#sets the key's value to be a tuple of (query_time, posts)
+	return posts
+
 class BlagPage(Handler):
 	def render_blag_front(self, subject="", content="", created=""):
-		entries = db.GqlQuery("select * from Post order by created desc")
+		entries = top_posts()
+		query_time = time.time() - memcache.get("top_post")[0]
+		QUERIED = "Queried %f seconds ago" % query_time
 		self.render("blag_front.html", subject=subject, content=content,
-					created=created, entries=entries)
+					created=created, entries=entries, QUERIED=QUERIED)
 
 	def get(self):
 		self.render_blag_front()
+
+def blag_permalinks(key, update = False):
+	try:
+		permalink = memcache.get(key)
+	except TypeError:
+		permalink = None
+	if permalink is None or update:
+		logging.error("DB QUERY")
+		permalink = db.GqlQuery("SELECT * FROM Post")
+		permalink = list(permalink)
+		memcache.set(key, (permalink))
+	return ikey
 
 class BlagPost(Handler):
 	def render_blag_post(self, subject="", content="", created="",
@@ -356,6 +387,7 @@ class BlagPost(Handler):
 			e = Post(subject=subject, content=content)
 			e_key = e.put() # Key('Entry', id)
 			e.put()
+			top_posts(True)
 
 			self.redirect("/blag/%d" % e_key.id())
 		else:
@@ -367,8 +399,8 @@ class JsonHandler(BlagPage):
 		self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
 
 		l = []
-		posts = db.GqlQuery("select * from Post order by created desc")
-		posts = list(posts)
+		posts = top_posts()
+		#viewing the json page no longer performs a db read
 
 		for p in posts:
 			j = {}
@@ -379,11 +411,14 @@ class JsonHandler(BlagPage):
 
 		self.write(json.dumps(l))
 
-
 class BlagPostPermalink(BlagPage):
 	def get(self, post_id):
-		s = Post.get_by_id(int(post_id))
-		self.render("blag_front.html", entries=[s])
+#		self.write(repr(post_id))
+		s = blag_permalinks(key=post_id, update=True)
+		self.write(repr(s))
+#		query_time = time.time() - memcache.get(post_id)[0]
+#		QUERIED = "Queried %f seconds ago" % query_time
+#		self.render("blag_front.html", entries=s)
 
 class JsonPermalink(BlagPostPermalink):
 	def get(self, post_id):
@@ -394,15 +429,15 @@ class JsonPermalink(BlagPostPermalink):
 
 		self.write(json.dumps(j))
 
-app = webapp2.WSGIApplication([("/signup", RegisterHandler),
-							   ("/welcome", WelcomeHandler),
-							   ("/login", LoginHandler),
-							   ("/logout", LogoutHandler),
-							   ('/ascii', AsciiPage),
-							   ('/blag', BlagPage),
-							   ('/blag/newpost', BlagPost),
+app = webapp2.WSGIApplication([("/signup/?", RegisterHandler),
+							   ("/welcome/?", WelcomeHandler),
+							   ("/login/?", LoginHandler),
+							   ("/logout/?", LogoutHandler),
+							   ('/ascii/?', AsciiPage),
+							   ('/blag/?', BlagPage),
+							   ('/blag/newpost/?', BlagPost),
 							   ('/blag/(\d+)', BlagPostPermalink),
-							   ('/database', DBHandler),
+							   ('/database/?', DBHandler),
 							   ('/blag/?(?:\.json)?', JsonHandler),
 							   ('/blag/(\d+)/?(?:\.json)?', JsonPermalink)], 
 								debug=True)
