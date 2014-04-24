@@ -8,7 +8,7 @@
 <div class="post-created"><em>Submitted: {{post.created.strftime("%b %d, %Y")}} at {{post.created.strftime("%H:%M:%S")}}</em></div><br/>
 	<pre class="post-content">{{post.content}}</pre><br/><br/>
 {% endfor %}
-<div class="queried">{{QUERIED}}</div>
+<div class="age">{{age}}</div>
 </body></html>
 <style type="text/css">
 body {
@@ -35,7 +35,7 @@ textarea {
 	font-family: monospace;
 }
 
-.queried {
+.age {
 	position: absolute;
 	left: 0px;
 	bottom: 0px;

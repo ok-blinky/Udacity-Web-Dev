@@ -335,9 +335,10 @@ def top_posts(update = False):
 	key = 'top_post'
 	try:
 		posts = memcache.get(key)[1]
-	except:
+		#pulls just the post objects from the tuple of (query_time, posts)
+	except Exception as e:
+		logging.error(e)
 		posts = None
-	#pulls just the posts from the tuple of (query_time, posts)
 	if posts is None or update:
 		logging.error("DB QUERY")
 		posts = db.GqlQuery("SELECT * FROM Post "
@@ -351,9 +352,9 @@ class BlagPage(Handler):
 	def render_blag_front(self, subject="", content="", created=""):
 		entries = top_posts()
 		query_time = time.time() - memcache.get("top_post")[0]
-		QUERIED = "Queried %f seconds ago" % query_time
+		age = "Queried %f seconds ago" % query_time
 		self.render("blag_front.html", subject=subject, content=content,
-					created=created, entries=entries, QUERIED=QUERIED)
+					created=created, entries=entries, age=age)
 
 	def get(self):
 		self.render_blag_front()
@@ -361,7 +362,8 @@ class BlagPage(Handler):
 def blag_permalinks(key, update = False):
 	try:
 		permalink = memcache.get(key)[1]
-	except TypeError:
+	except Exception as e:
+		logging.error(e)
 		permalink = None
 	if permalink is None or update:
 		logging.error("DB QUERY")
@@ -412,11 +414,10 @@ class JsonHandler(BlagPage):
 
 class BlagPostPermalink(BlagPage):
 	def get(self, post_id):
-#		self.write(repr(post_id))
 		s = blag_permalinks(key=post_id)
-		query_time = time.time() - memcache.get(post_id)[0]
-		QUERIED = "Queried %f seconds ago" % query_time
-		self.render("blag_front.html", entries=[s], QUERIED=QUERIED)
+		last_query = time.time() - memcache.get(post_id)[0]
+		age = "Queried %f seconds ago" % last_query
+		self.render("blag_front.html", entries=[s], age=age)
 
 class JsonPermalink(BlagPostPermalink):
 	def get(self, post_id):
