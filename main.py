@@ -333,12 +333,7 @@ class Post(db.Model):
 
 def top_posts(update = False):
 	key = 'top_post'
-	try:
-		posts = memcache.get(key)[1]
-		#pulls just the post objects from the tuple of (query_time, posts)
-	except Exception as e:
-		logging.error(e)
-		posts = None
+	posts = memcache.get(key)
 	if posts is None or update:
 		logging.error("DB QUERY")
 		posts = db.GqlQuery("SELECT * FROM Post "
@@ -346,6 +341,9 @@ def top_posts(update = False):
 		posts = list(posts)
 		memcache.set(key, (time.time(), posts))
 		#sets the key's value to be a tuple of (query_time, posts)
+	else:
+		posts = memcache.get(key)[1]
+		#pulls just the post objects from the tuple
 	return posts
 
 class BlagPage(Handler):
@@ -360,15 +358,13 @@ class BlagPage(Handler):
 		self.render_blag_front()
 
 def blag_permalinks(key, update = False):
-	try:
-		permalink = memcache.get(key)[1]
-	except Exception as e:
-		logging.error(e)
-		permalink = None
+	permalink = memcache.get(key)
 	if permalink is None or update:
 		logging.error("DB QUERY")
 		permalink = db.get(db.Key.from_path('Post', int(key)))
 		memcache.set(key, (time.time(), permalink))
+	else:
+		permalink = memcache.get(key)[1]
 	return permalink
 
 class BlagPost(Handler):
