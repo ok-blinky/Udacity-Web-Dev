@@ -429,7 +429,67 @@ class FlushCache(Handler):
 		memcache.flush_all()
 		self.redirect("/blag")
 
-app = webapp2.WSGIApplication([("/blag/signup/?", RegisterHandler),
+def wiki_cache(key, update = False):
+	wiki = memcache.get(key)
+	if wiki is None or update:
+		logging.error("DB QUERY")
+		wiki = db.GqlQuery("SELECT * FROM Wikis WHERE title = :1 ORDER BY edited DESC LIMIT 1", key)
+		wiki = wiki.get()
+		memcache.set(key, wiki)
+		wiki = memcache.get(key)
+	return wiki
+
+class Wikis(db.Model):
+	title = db.StringProperty(required = True)
+	content = db.TextProperty(required = True)
+	created = db.DateTimeProperty(auto_now_add = True)
+	edited = db.DateTimeProperty(auto_now = True)
+	
+	def render(self):
+		self._render_text = self.content.replace('\n', '<br>')
+		return render_str("wiki_edit.html", p = self)
+#render function here is used to preserve new lines in wiki edits
+
+def wiki_page_parse(url):
+#parses the url to get the str value of the url after "/wiki/" and, if applicable, "/_edit/"
+	main_path, sub_path = url.split("/wiki/")
+	if "_edit/" in sub_path:
+		empty, sub_path = sub_path.split("_edit/")
+	return sub_path
+
+class EditPage(Handler):
+	def get(self, content, *args):
+		if self.user:
+			self.render('wiki_edit.html', username = self.user.name)
+		else:
+			self.redirect('/signup')		
+
+	def post(self, *args):
+		content = self.request.get("content")
+		title = wiki_page_parse(self.request.url)
+
+		if content:
+			w = Wikis(content = content, title = title)
+			w.put()
+			wiki_cache(key = title, update=True)
+
+			self.redirect("/wiki/%s" % title)
+		else:
+			wiki_error = "You can't submit an empty edit!"
+			self.redirect("/wiki/_edit/%s" % title, content, wiki_error = wiki_error)
+
+class WikiPage(Handler):
+	def get(self, *args):
+		wiki_key = wiki_page_parse(self.request.url)
+		s = wiki_cache(key=wiki_key, update=True)
+		if s:
+			self.render('wiki_page.html', wiki_entry = [s])
+		else:
+			self.redirect("/wiki/_edit/%s" % wiki_key)
+
+
+PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+/?)*)'
+app = webapp2.WSGIApplication([(".*?/signup/?", RegisterHandler),
 							   ("/welcome/?", WelcomeHandler),
 							   ("/login/?", LoginHandler),
 							   ("/logout/?", LogoutHandler),
@@ -440,5 +500,7 @@ app = webapp2.WSGIApplication([("/blag/signup/?", RegisterHandler),
 							   ('/database/?', DBHandler),
 							   ('/blag/?(?:\.json)?', JsonHandler),
 							   ('/blag/(\d+)/?(?:\.json)?', JsonPermalink),
-							   ('/blag/flush/?', FlushCache)],
+							   ('/blag/flush/?', FlushCache),
+							   ('/wiki/_edit' + PAGE_RE, EditPage),
+							   ('/wiki' + PAGE_RE, WikiPage),],
 								debug=True)

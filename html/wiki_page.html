@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head><title>Blinky's Wiki</title></head>
+<body>
+<b>Blinky's Wiki</b>
+<br/><br/>
+{% for attr in wiki_entry %}
+<div class="wiki-edited"><em>Edited: {{attr.edited.strftime("%b %d, %Y")}} at {{attr.edited.strftime("%H:%M:%S")}}</em></div><br/>
+	<pre class="wiki-content">{{attr.content}}</pre><br/><br/>
+{% endfor %}
+</body></html>
