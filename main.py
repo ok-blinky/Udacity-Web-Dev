@@ -110,7 +110,7 @@ class User(db.Model):
 		u = cls.all().filter('name =', name).get()
 		return u
 #this lets your call by_name to retrieve a username from the database
-#rather than using GqlQuery("select * from User where name=:1" "name").get()
+#rather than using GqlQuery("select * from User where name=:1", name).get()
 
 	@classmethod
 	def register(cls, name, pw, email = None):
@@ -429,14 +429,21 @@ class FlushCache(Handler):
 		memcache.flush_all()
 		self.redirect("/blag")
 
-def wiki_cache(key, update = False):
-	wiki = memcache.get(key)
-	if wiki is None or update:
-		logging.error("DB QUERY")
-		wiki = db.GqlQuery("SELECT * FROM Wikis WHERE title = :1 ORDER BY edited DESC LIMIT 1", key)
-		wiki = wiki.get()
-		memcache.set(key, wiki)
+def wiki_cache(key, update = False, history = False):
+	if history:
+		wiki = memcache.get('h_' + key)
+		if wiki is None:
+			logging.error("DB QUERY")
+			wiki = db.GqlQuery("SELECT * FROM Wikis WHERE title = :1 ORDER BY edited DESC", key)
+			wiki = list(wiki)
+			memcache.set('h_' + key, wiki)
+	else:
 		wiki = memcache.get(key)
+		if wiki is None or update:
+			logging.error("DB QUERY")
+			wiki = db.GqlQuery("SELECT * FROM Wikis WHERE title = :1 ORDER BY edited DESC LIMIT 1", key)
+			wiki = wiki.get()
+			memcache.set(key, wiki)
 	return wiki
 
 class Wikis(db.Model):
@@ -451,16 +458,33 @@ class Wikis(db.Model):
 #render function here is used to preserve new lines in wiki edits
 
 def wiki_page_parse(url):
-#parses the url to get the str value of the url after "/wiki/" and, if applicable, "/_edit/"
+#parses the url to get the str value of the url after "/wiki/" and, if applicable, "/_edit/" or "_/history/"
 	main_path, sub_path = url.split("/wiki/")
 	if "_edit/" in sub_path:
 		empty, sub_path = sub_path.split("_edit/")
+	if "_history/" in sub_path:
+		empty, sub_path = sub_path.split("_history/")
 	return sub_path
 
-class EditPage(Handler):
-	def get(self, content, *args):
+class WikiPage(Handler):
+	def get(self, *args):
+		title = wiki_page_parse(self.request.url)
+		s = wiki_cache(key=title)
+		if s:
+			self.render('wiki_page.html', wiki_entry = [s])
+		else:
+			self.redirect("/wiki/_edit/%s" % title)
+
+class EditPage(WikiPage):
+	def get(self, *args):
 		if self.user:
-			self.render('wiki_edit.html', username = self.user.name)
+			title = wiki_page_parse(self.request.url)
+			content = wiki_cache(key=title)
+			if content:
+				content = content.content
+			else:
+				content = ""
+			self.render('wiki_edit.html', content=content, username = self.user.name)
 		else:
 			self.redirect('/signup')		
 
@@ -476,17 +500,13 @@ class EditPage(Handler):
 			self.redirect("/wiki/%s" % title)
 		else:
 			wiki_error = "You can't submit an empty edit!"
-			self.redirect("/wiki/_edit/%s" % title, content, wiki_error = wiki_error)
+			self.redirect("/wiki/_edit/%s" % title)
 
-class WikiPage(Handler):
+class WikiHistory(WikiPage):
 	def get(self, *args):
-		wiki_key = wiki_page_parse(self.request.url)
-		s = wiki_cache(key=wiki_key, update=True)
-		if s:
-			self.render('wiki_page.html', wiki_entry = [s])
-		else:
-			self.redirect("/wiki/_edit/%s" % wiki_key)
-
+		title = wiki_page_parse(self.request.url)
+		s = wiki_cache(key=title, history=True)
+		self.render('wiki_history.html', wiki_entry = [s])
 
 PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+/?)*)'
 app = webapp2.WSGIApplication([(".*?/signup/?", RegisterHandler),
@@ -501,6 +521,7 @@ app = webapp2.WSGIApplication([(".*?/signup/?", RegisterHandler),
 							   ('/blag/?(?:\.json)?', JsonHandler),
 							   ('/blag/(\d+)/?(?:\.json)?', JsonPermalink),
 							   ('/blag/flush/?', FlushCache),
+							   ('/wiki/_history' + PAGE_RE, WikiHistory),
 							   ('/wiki/_edit' + PAGE_RE, EditPage),
 							   ('/wiki' + PAGE_RE, WikiPage),],
 								debug=True)
