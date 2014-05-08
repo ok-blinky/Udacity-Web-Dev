@@ -432,10 +432,10 @@ class FlushCache(Handler):
 def wiki_cache(key, update = False, history = False):
 	if history:
 		wiki = memcache.get('h_' + key)
-		if wiki is None:
+		if wiki is None or update:
 			logging.error("DB QUERY")
 			wiki = db.GqlQuery("SELECT * FROM Wikis WHERE title = :1 ORDER BY edited DESC", key)
-			wiki = list(wiki)
+			wiki = wiki.fetch(limit=10)
 			memcache.set('h_' + key, wiki)
 	else:
 		wiki = memcache.get(key)
@@ -505,8 +505,8 @@ class EditPage(WikiPage):
 class WikiHistory(WikiPage):
 	def get(self, *args):
 		title = wiki_page_parse(self.request.url)
-		s = wiki_cache(key=title, history=True)
-		self.render('wiki_history.html', wiki_entry = [s])
+		s = wiki_cache(key=title, history=True, update=True)
+		self.render('wiki_history.html', wiki_entry = s)
 
 PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+/?)*)'
 app = webapp2.WSGIApplication([(".*?/signup/?", RegisterHandler),
