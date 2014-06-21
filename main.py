@@ -464,6 +464,8 @@ def wiki_page_parse(url):
 		empty, sub_path = sub_path.split("_edit/")
 	if "_history/" in sub_path:
 		empty, sub_path = sub_path.split("_history/")
+	if not sub_path:
+		return ""
 	return sub_path
 
 class WikiPage(Handler):
@@ -521,6 +523,7 @@ app = webapp2.WSGIApplication([(".*?/signup/?", RegisterHandler),
 							   ('/blag/?(?:\.json)?', JsonHandler),
 							   ('/blag/(\d+)/?(?:\.json)?', JsonPermalink),
 							   ('/blag/flush/?', FlushCache),
+							   ('/wiki/', WelcomeHandler),
 							   ('/wiki/_history' + PAGE_RE, WikiHistory),
 							   ('/wiki/_edit' + PAGE_RE, EditPage),
 							   ('/wiki' + PAGE_RE, WikiPage),],
