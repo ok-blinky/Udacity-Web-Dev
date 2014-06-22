@@ -155,7 +155,7 @@ class LogoutHandler(Handler):
 
 	def get(self):
 		self.logout()
-		self.redirect('/blag/signup')
+		self.redirect('/signup')
 
 class SignupHandler(Handler):
 
@@ -524,10 +524,11 @@ class WikiHistory(WikiPage):
 		self.render('wiki_history.html', wiki_entry = s)
 
 PAGE_RE = r'(/(?:[a-zA-Z0-9_-]+/?)*)'
-app = webapp2.WSGIApplication([(".*?/signup/?", RegisterHandler),
-							   ("/welcome/?", WelcomeHandler),
-							   ("/login/?", LoginHandler),
-							   ("/logout/?", LogoutHandler),
+app = webapp2.WSGIApplication([('/?', WelcomeHandler),
+							   ('.*?/signup/?', RegisterHandler),
+							   ('/welcome/?', WelcomeHandler),
+							   ('/login/?', LoginHandler),
+							   ('/logout/?', LogoutHandler),
 							   ('/ascii/?', AsciiPage),
 							   ('/blag/?', BlagPage),
 							   ('/blag/newpost/?', BlagPost),

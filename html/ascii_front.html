@@ -13,7 +13,7 @@ Make some ASCII art in this box!<br>
 </form>
 
 {% if img_url %}
-	<span>ASCII Artists Locations</span>
+	<span class="map-header">ASCII Artists Locations</span>
 	<img class="map" src="{{img_url}}">
 {% endif %}
 
@@ -27,6 +27,14 @@ Make some ASCII art in this box!<br>
 </body></html>
 
 	<style type="text/css">
+		.map-header {
+			position: absolute;
+			right: 0;
+			top: 80px;
+			font-weight: bold;
+			font-size: 20px;
+		}
+
 		.map {
 			position: absolute;
 			right: 0;
