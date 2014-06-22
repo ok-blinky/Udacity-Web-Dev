@@ -4,8 +4,8 @@
 <body>
 <form method="post">
 Title of your ASCII<br>
-<input type="text" name="title" value="{{title}}"><br>
-Make Some Art in This Box!<br>Or steal it, you thief!<br>
+<input type="text" name="title" value="{{title}}"><br><br><br>
+Make some ASCII art in this box!<br>
 <textarea name="art">{{art}}</textarea>
 <br>
 <div style="color: red" class="ascii_error">{{ascii_error}}</div>
@@ -13,6 +13,7 @@ Make Some Art in This Box!<br>Or steal it, you thief!<br>
 </form>
 
 {% if img_url %}
+	<span>ASCII Artists Locations</span>
 	<img class="map" src="{{img_url}}">
 {% endif %}
 

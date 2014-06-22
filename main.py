@@ -218,7 +218,7 @@ class WelcomeHandler(Handler):
 		if self.user:
 			self.render('welcome.html', username = self.user.name)
 		else:
-			self.redirect('/blag/signup')
+			self.redirect('/signup')
 
 
 GMAPS_URL = "http://maps.googleapis.com/maps/api/staticmap?size=380x263&sensor=false&"
@@ -464,9 +464,22 @@ def wiki_page_parse(url):
 		empty, sub_path = sub_path.split("_edit/")
 	if "_history/" in sub_path:
 		empty, sub_path = sub_path.split("_history/")
-	if not sub_path:
-		return ""
 	return sub_path
+
+class WikiWelcome(Handler):
+	def get(self):
+		if self.user:
+			self.render('wiki_welcome.html', username = self.user.name)
+		else:
+			self.redirect('/signup')
+
+	def post(self):
+		page = self.request.get("page")
+
+		if page:
+			self.redirect('/wiki/%s' % page)
+		else:
+			self.render('/wiki_welcome.html', username = self.user.name)
 
 class WikiPage(Handler):
 	def get(self, *args):
@@ -523,7 +536,7 @@ app = webapp2.WSGIApplication([(".*?/signup/?", RegisterHandler),
 							   ('/blag/?(?:\.json)?', JsonHandler),
 							   ('/blag/(\d+)/?(?:\.json)?', JsonPermalink),
 							   ('/blag/flush/?', FlushCache),
-							   ('/wiki/', WelcomeHandler),
+							   ('/wiki/?', WikiWelcome),
 							   ('/wiki/_history' + PAGE_RE, WikiHistory),
 							   ('/wiki/_edit' + PAGE_RE, EditPage),
 							   ('/wiki' + PAGE_RE, WikiPage),],
