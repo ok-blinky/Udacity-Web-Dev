@@ -404,6 +404,7 @@ class JsonHandler(BlagPage):
 			j["content"]=p.content
 			j["subject"]=p.subject
 			j["created"]=p.created.strftime('%c')
+			j["permalink"]=p.key().id()
 			l.append(j)
 
 		self.write(json.dumps(l))
@@ -420,7 +421,7 @@ class JsonPermalink(BlagPostPermalink):
 		self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
 		s = Post.get_by_id(int(post_id))
 		j = {"content":s.content, "subject":s.subject,
-			 "created":s.created.strftime('%c')}
+			 "created":s.created.strftime('%c'), "permalink":s.key().id()}
 
 		self.write(json.dumps(j))
 
